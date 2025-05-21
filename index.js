@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const { MongoClient } = require('mongodb');
 const app = express();
@@ -9,26 +10,29 @@ let db;
 app.use(express.json());
 
 app.post('/sync-grants', async (req, res) => {
-  try {
-    const docs = req.body; // Expecting array of grant objects
-    const collection = db.collection('grants-testing');
-
-    for (const doc of docs) {
-      if (!doc.grant_id) continue; // Skip if no unique key
-      await collection.updateOne(
-        { grant_id: doc.grant_id },
-        { $set: doc },
-        { upsert: true }
-      );
+    if (!db) {
+      return res.status(500).json({ error: 'Database not connected' });
     }
-
-    res.status(200).json({ status: 'ok', count: docs.length });
-  } catch (err) {
-    console.error('Error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
+    try {
+      const docs = req.body;
+      const collection = db.collection('grants-testing');
+  
+      for (const doc of docs) {
+        if (!doc.grant_id) continue;
+        await collection.updateOne(
+          { grant_id: doc.grant_id },
+          { $set: doc },
+          { upsert: true }
+        );
+      }
+  
+      res.status(200).json({ status: 'ok', count: docs.length });
+    } catch (err) {
+      console.error('Error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+  
 app.listen(PORT, async () => {
   await client.connect();
   db = client.db(process.env.MONGO_DB_NAME || 'grantsDB');
